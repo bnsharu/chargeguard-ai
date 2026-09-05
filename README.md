@@ -6,42 +6,45 @@
 
 ## 1. Overview
 
-**ChargeGuard AI** is a defense-only AI risk management system designed to identify potentially chargeback-prone payment transactions in real time and help online merchants proactively assemble and organize supporting dispute documentation.
+**ChargeGuard AI** is a defense-only AI risk manager designed to identify potentially chargeback-prone payment transactions in real time and help online merchants organize supporting evidence.
 
-By evaluating transaction telemetry, customer history, payment authentication signals, and velocity patterns before and after settlement, ChargeGuard AI computes a calibrated chargeback probability and provides explainable risk scoring, actionable risk tiers, and organized evidence defense packets.
+`HistGradientBoostingClassifier` produces a chargeback-risk probability estimate based on transaction telemetry, customer history, payment authentication signals, and velocity patterns. ChargeGuard AI helps merchants organize legitimate transaction and dispute-supporting records for review.
 
 > ⚠️ **Important Synthetic Data Disclaimer**  
-> The current demonstration and evaluation utilize a **SYNTHETIC dataset** generated for demonstration and research purposes. The data, model weights, and performance metrics reported here are **NOT representative of Razorpay production performance** or live transaction environments.
+> **This project uses synthetic transaction data for demonstration and evaluation. The reported model metrics do not represent Razorpay production performance.**
 
 ---
 
 ## 2. Problem Statement
 
-Payment fraud and unwarranted chargebacks represent an escalating operational loss for digital merchants. When a dispute is filed:
-1. **Financial Loss**: Merchants forfeit the transaction amount along with non-refundable acquirer/gateway dispute fees.
-2. **Operational Overhead**: Manually collating delivery receipts, 3-D Secure authentication logs, invoices, and customer communications within strict representation windows is time-consuming and error-prone.
-3. **False-Positive Friction**: Overly aggressive blocking mechanisms decline legitimate cardholders, causing customer attrition, cart abandonment, and brand damage.
+Digital merchants face ongoing challenges in identifying potentially risky transactions and reducing chargeback-related loss while considering false-positive customer friction:
 
-Merchants require an intelligent, explainable defensive solution that flags potentially high-risk transactions early, recommends balanced operational steps (APPROVE, FLAG_FOR_REVIEW, STEP_UP_AUTH, BLOCK), and automatically structures legitimate fulfillment and authentication evidence without fabricating records or creating customer friction.
+1. **Chargeback Losses**: Unidentified fraudulent transactions lead to lost merchandise and dispute processing costs.
+2. **Review Overhead**: Collation of delivery confirmations, payment authentication logs, invoices, and customer correspondence for dispute review can be manual and fragmented.
+3. **False-Positive Friction**: Overly aggressive blocking mechanisms decline legitimate cardholders, causing customer drop-off and cart abandonment.
+
+Merchants need an explainable, defensive review solution that flags potentially high-risk transactions early, recommends operational next steps, and helps organize legitimate transaction documentation without creating unnecessary customer friction.
 
 ---
 
 ## 3. Solution
 
-ChargeGuard AI tackles the chargeback lifecycle through a coordinated pipeline:
+ChargeGuard AI provides a structured workflow for merchant transaction review:
 
-- **Transaction Data Collection**: Captures 11 core transaction, behavioral, and verification signals upon checkout or review.
-- **ML-Based Risk Prediction**: Executes inference against a machine learning model (`HistGradientBoostingClassifier`) hosted via a FastAPI service.
-- **Chargeback Probability**: Produces a continuous probability estimate ($p \in [0, 1]$) representing the likelihood of dispute or friendly fraud.
-- **Configurable Decision Threshold**: Applies an operationally calibrated decision threshold (set to **0.20** for demonstration) to prioritize risk recall.
-- **Risk Classification**: Maps probabilities into actionable tiers: **LOW**, **MEDIUM**, **HIGH**, and **CRITICAL** with an intuitive 0–100 Risk Score.
-- **Recommended Action**: Provides instant operational guidance:
-  - `APPROVE` — Low dispute probability, seamless processing.
-  - `FLAG_FOR_REVIEW` — Borderline velocity or mismatch signals, merchant manual review suggested.
-  - `STEP_UP_AUTH` — High risk with weak authentication; enforce biometric/3DS challenge.
-  - `BLOCK` — High risk with heavy historical chargebacks or velocity spikes.
-- **Transaction History**: Automatically records analyzed transactions into an in-memory / local transaction ledger with instant status filtering, search, and CSV export.
-- **Evidence Management**: Generates merchant dispute evidence packages, scoring document completeness, calculating defense strength, and formatting formal rebuttal letters for legitimate fulfillment verification.
+- **Transaction Data Collection**: Collects 11 core transaction, customer, and verification fields.
+- **ML-Based Risk Prediction**: Sends feature inputs to a FastAPI inference service running a trained `HistGradientBoostingClassifier`.
+- **Chargeback Probability**: Produces a chargeback-risk probability estimate between 0.00 and 1.00.
+- **Configurable Decision Threshold**: Applies a decision threshold (set to **0.20** for demonstration) to evaluate potential chargeback risk.
+- **Risk Classification**: Classifies transactions into 3 implemented risk levels:
+  - **LOW**
+  - **MEDIUM**
+  - **HIGH**
+- **Recommended Action**: Provides the 3 implemented operational actions:
+  - **LOW** → `APPROVE`
+  - **MEDIUM** → `MONITOR`
+  - **HIGH** → `MANUAL_VERIFICATION`
+- **Transaction History**: Automatically records analyzed transactions in a searchable ledger with filtering and CSV export.
+- **Evidence Management**: Helps merchants organize and summarize evidence across **7 evidence categories** based strictly on records that are actually available or explicitly marked by the merchant. The system does not automatically create evidence that does not exist.
 
 ---
 
@@ -68,10 +71,10 @@ Chargeback Probability (0.00 – 1.00)
 Threshold 0.20 Evaluation
   │
   ▼
-Risk Score (0–100) / Risk Level (LOW, MEDIUM, HIGH, CRITICAL)
+Risk Score / Risk Level (LOW, MEDIUM, HIGH)
   │
   ▼
-Recommended Action (APPROVE, FLAG_FOR_REVIEW, STEP_UP_AUTH, BLOCK)
+Recommended Action (APPROVE, MONITOR, MANUAL_VERIFICATION)
   │
   ▼
 Transaction Ledger (State & Local Storage)
@@ -82,8 +85,8 @@ Dashboard / Evidence Center
 
 ### Demonstration vs. Production Architecture Notice
 
-- **Demonstration Setup**: The current demo backend runs on a **Google Colab** GPU/CPU runtime and is exposed via a secure **ngrok tunnel** (`https://clinic-dictate-dolphin.ngrok-free.dev`) serving the FastAPI `/predict` and `/health` endpoints. A local Express proxy (`/api/ml/*`) provides fallback handling and CORS normalization.
-- **Production Deployment**: In a production environment, this Colab/ngrok setup would be replaced by a containerized microservice deployed on a persistent, autoscaling cloud service (e.g., Google Cloud Run, AWS ECS/EKS, or Kubernetes) behind an enterprise API gateway with mTLS, rate limiting, and dedicated VPC peering to payment gateways.
+- **Demonstration Setup**: The current development and demonstration backend runs via **Google Colab** and is temporarily exposed through an **ngrok** tunnel to serve the FastAPI `/health` and `/predict` endpoints. The ngrok URL is a temporary demonstration tunnel and is not a permanent production endpoint.
+- **Production Deployment**: A production deployment would use a persistent, secure cloud service (such as containerized cloud microservices) behind an API gateway with authentication, rate limiting, and secure VPC routing.
 
 ---
 
@@ -92,55 +95,57 @@ Dashboard / Evidence Center
 ### Model Specification
 
 - **Algorithm**: `HistGradientBoostingClassifier` (scikit-learn)
-- **Dataset**: Synthetic merchant transaction dataset
+- **Dataset**: Synthetic
 - **Total Transactions**: 20,000 synthetic records
 - **Training Set**: 16,000 records (80%)
 - **Held-Out Test Set**: 4,000 records (20%)
 - **Number of Features**: 11 features
-- **Decision Threshold**: **0.20**
+- **Decision Threshold**: 0.20
+
+`HistGradientBoostingClassifier` produces a chargeback-risk probability estimate based on the input features.
 
 ### 11 Model Features
 
-| # | Feature Name | Description & Data Type |
+| # | Feature Name | Description |
 |---|---|---|
 | 1 | `transaction_amount` | Numeric transaction value in INR (₹) |
-| 2 | `account_age_days` | Age of customer account in days (maturity signal) |
-| 3 | `previous_orders` | Number of successful lifetime purchases |
-| 4 | `previous_chargebacks` | Number of previous chargebacks on customer record |
-| 5 | `failed_payment_attempts` | Unsuccessful attempts in the last 24 hours |
-| 6 | `transactions_last_24h` | Transaction velocity count over previous 24 hours |
-| 7 | `device_changed` | Binary flag (`0` = familiar device, `1` = new/unrecognized device) |
-| 8 | `billing_shipping_mismatch` | Binary flag (`0` = matched addresses, `1` = mismatched addresses) |
-| 9 | `three_ds_friction` | Binary flag (`0` = frictionless/authenticated, `1` = challenge/attempted only) |
+| 2 | `account_age_days` | Age of customer account in days |
+| 3 | `previous_orders` | Number of previous completed orders |
+| 4 | `previous_chargebacks` | Number of prior recorded chargebacks |
+| 5 | `failed_payment_attempts` | Failed payment attempts in the last 24 hours |
+| 6 | `transactions_last_24h` | Transaction count in the last 24 hours |
+| 7 | `device_changed` | Binary indicator (0 = unchanged device, 1 = changed device) |
+| 8 | `billing_shipping_mismatch` | Binary indicator (0 = matching addresses, 1 = mismatch) |
+| 9 | `three_ds_friction` | Binary indicator (0 = frictionless/authenticated, 1 = challenge or attempted) |
 | 10 | `customer_age_years` | Customer age in years |
-| 11 | `order_value` | Total cart order value in INR (₹) |
+| 11 | `order_value` | Order value in INR (₹) |
 
-> **Integration Note**: In the current frontend integration, `order_value = transaction_amount`.
+> **Integration Note**: `order_value = transaction_amount` in the current frontend integration.
 
 ---
 
 ## 6. Held-Out Test Results
 
-The model was evaluated against the 4,000-sample held-out synthetic test set at the selected **0.20** decision threshold.
+The model was evaluated on the 4,000 held-out synthetic test records at threshold 0.20:
 
 ### SYNTHETIC DEMONSTRATION RESULTS
 
-| Evaluation Metric | Value |
+| Metric | Value |
 |---|---|
 | **Accuracy** | **64.42%** |
 | **Precision** | **38.98%** |
 | **Recall** | **70.33%** |
 | **F1 Score** | **50.16%** |
 | **ROC-AUC** | **73.43%** |
-| **False Positive Rate (FPR)** | **37.59%** |
+| **False Positive Rate** | **37.59%** |
 
-> ⚠️ **Notice**: These metrics are **SYNTHETIC DEMONSTRATION RESULTS** obtained on synthetic test distributions. They do **NOT** describe or represent Razorpay production performance or live merchant portfolios.
+> ⚠️ **Notice**: These metrics are **SYNTHETIC DEMONSTRATION RESULTS** evaluated on a synthetic dataset and are **NOT representative of Razorpay production performance**.
 
 ---
 
 ## 7. Threshold Selection
 
-The default decision threshold of **0.20** was chosen based on an empirical evaluation of risk capture versus merchant review volume across threshold candidates:
+The decision threshold was set to **0.20** based on the synthetic held-out test evaluation:
 
 | Threshold | Recall | Precision | F1 Score | False Positive Rate |
 |:---:|:---:|:---:|:---:|:---:|
@@ -150,76 +155,89 @@ The default decision threshold of **0.20** was chosen based on an empirical eval
 | **0.25** | 0.61 | 0.44 | 0.51 | 0.27 |
 | **0.30** | 0.53 | 0.48 | 0.50 | 0.19 |
 
-### Why Threshold 0.20 Was Selected
+### Threshold Trade-off
 
-In payment chargeback defense, the operational cost of missing a fraudulent chargeback (direct loss of product value, chargeback fees, and card scheme violation penalties) significantly outweighs the cost of secondary review or step-up authentication. 
-
-- At **0.10**, recall is 100%, but the 98% false-positive rate overwhelms operations and frustrates customers.
-- At **0.30**, precision improves to 48%, but recall drops to 53%, missing nearly half of potential chargebacks.
-- **Threshold 0.20 represents the optimal operational trade-off**: it captures **70.33%** of all chargebacks while controlling false positives to 37.59% and delivering a balanced F1 score of **50.16%**.
+The decision threshold represents an operational trade-off between catching more potentially risky transactions (recall) and reducing false-positive customer review volume (precision and false positive rate). Threshold 0.20 was selected for demonstration purposes to demonstrate balanced recall and review volume on the synthetic dataset, and is not claimed to be an industry-standard or universally optimal threshold.
 
 ---
 
 ## 8. False Positive Cost
 
-To quantify the economic impact of decision boundaries during review, the demonstration incorporates a merchant friction model:
+To illustrate review volume trade-offs, the demonstration includes a cost estimation assumption:
 
-### Demonstration Cost Parameters
-- **False-Positive Cost Assumption**: **₹150** per false positive (estimated cost of manual agent review, SMS/challenge dispatch, and minor checkout friction).
+- **Demonstration assumption: ₹150 per false positive** (illustrative estimate representing potential manual review time and customer verification steps).
 
-### Impact at Threshold 0.20 (4,000 Test Transactions)
-- **False Positives**: 1,121 transactions
-- **Estimated Friction Cost**: $1,121 \times ₹150 =$ **₹168,150**
+### Demonstration Test Impact (4,000 Test Records at Threshold 0.20)
+- **False Positives**: 1,121
+- **Estimated demonstration friction cost**: **₹168,150** ($1,121 \times ₹150$)
 
-> ⚠️ **Assumption Notice**: The ₹150 friction cost is an **ASSUMPTION used strictly for demonstration modeling** and does not reflect actual Razorpay pricing, merchant fee schedules, or dispute arbitration costs.
+> ⚠️ **Notice**: This friction cost is an **illustrative assumption** used for demonstration and is **NOT actual Razorpay pricing or cost**.
 
 ---
 
-## 9. Feature Groups & Risk Rationale
+## 9. Features
 
-The 11 model features map directly into 8 critical fraud detection dimensions:
+The 11 input features correspond to common risk analysis dimensions:
 
-1. **Transaction Amount & Order Value**: High-ticket purchases represent disproportionate loss exposure and attract card-not-present (CNP) fraudsters testing stolen limits.
-2. **Account Maturity (`account_age_days`)**: New accounts (< 7 days) exhibit exponentially higher chargeback rates compared to tenured profiles.
-3. **Customer History (`previous_orders`, `previous_chargebacks`)**: Prior chargebacks are the single strongest indicator of friendly-fraud recidivism; frequent successful orders indicate verified buyer trust.
-4. **Payment Authentication (`three_ds_friction`)**: Successful 3-D Secure authentication shifts chargeback liability to the issuing bank; attempted-only or non-3DS transactions leave merchants unprotected.
-5. **Failed Attempts (`failed_payment_attempts`)**: Multiple payment failures within 24 hours signal card testing, brute-force CVV guessing, or bank declines.
-6. **Transaction Velocity (`transactions_last_24h`)**: Sudden bursts of transactions indicate account takeover (ATO) or rapid extraction of stolen card credentials.
-7. **Device Changes (`device_changed`)**: Unrecognized browser fingerprint, OS, or hardware switches signal session hijacking or proxy farming.
-8. **Billing / Shipping Mismatch (`billing_shipping_mismatch`)**: Differing delivery destinations frequently indicate goods redirection to unauthorized drop points.
+- **Transaction Amount & Order Value**: Reflects the monetary exposure associated with the order.
+- **Account Maturity (`account_age_days`)**: Tracks account age in days to distinguish newly created accounts from older accounts.
+- **Customer History (`previous_orders`, `previous_chargebacks`)**: Incorporates the customer's prior order count and historical chargeback frequency.
+- **Payment Authentication (`three_ds_friction`)**: Indicates whether 3-D Secure authentication encountered challenge steps or was attempted only.
+- **Failed Attempts (`failed_payment_attempts`)**: Monitors multiple failed payment attempts within a 24-hour window.
+- **Transaction Velocity (`transactions_last_24h`)**: Measures rapid purchasing activity by counting orders placed in the last 24 hours.
+- **Device Changes (`device_changed`)**: Indicates whether a change in device or browser session was detected.
+- **Billing / Shipping Mismatch (`billing_shipping_mismatch`)**: Checks whether the billing address differs from the shipping destination.
 
 ---
 
 ## 10. Application Features
 
-ChargeGuard AI delivers a comprehensive, interactive merchant risk console:
+ChargeGuard AI provides the following user-facing features:
 
-- **Real-Time Transaction Analysis**: Interactive form allowing merchants to input transaction attributes, evaluate risk on demand, or test scenarios.
-- **Live ML Prediction**: Direct network integration with the FastAPI `/predict` endpoint, displaying server latency, model name, and inference status.
-- **Risk Score (0–100)**: Visual speedometer gauge indicating overall transaction risk severity.
-- **Chargeback Probability**: Exact model probability output displayed alongside decision thresholds.
-- **Risk Level**: Clear visual badges (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
-- **Recommended Action**: Deterministic decision recommendation (`APPROVE`, `FLAG_FOR_REVIEW`, `STEP_UP_AUTH`, `BLOCK`).
-- **Risk Factors**: Transparent breakdown of top contributing risk features with severity indicators.
-- **AI Risk Explanation**: Context-aware natural language summary explaining the reasoning behind the risk score.
-- **Transaction Ledger**: Searchable, filterable real-time ledger supporting client-side pagination, status filters, and instant evidence access.
-- **Dynamic Dashboard**: High-level risk distribution charts, chargeback rates, fraud velocity trends, and volume aggregations.
-- **Evidence Center**: Structured dispute package manager tracking 6 core representation document types.
-- **Evidence Strength**: Quantitative completeness score (0–100%) and defense strength rating (WEAK, MODERATE, STRONG, COMPLETE).
-- **CSV Export**: One-click download of transaction records and risk metrics for acquirer audits.
-- **Model Performance Dashboard**: Real-time visualization of model test results, confusion matrices, ROC-AUC, threshold curves, and economic cost trade-offs.
+- **Real-Time Transaction Analysis**: Interactive form to input transaction parameters and trigger evaluation.
+- **Live ML Prediction**: Connects to the live FastAPI `/predict` endpoint to compute inference in real time.
+- **Risk Score**: Displays a 0–100 risk score based on the model's probability estimate.
+- **Chargeback Probability**: Displays the estimated chargeback risk probability from the model.
+- **Risk Level**: Categorizes transactions into implemented tiers: **LOW**, **MEDIUM**, and **HIGH**.
+- **Recommended Action**: Provides operational guidance matching the current implementation:
+  - LOW → `APPROVE`
+  - MEDIUM → `MONITOR`
+  - HIGH → `MANUAL_VERIFICATION`
+- **Risk Factors**: Identifies key contributing risk parameters.
+- **AI Risk Explanation**: Generates an explanatory summary of the identified risk signals.
+- **Transaction Ledger**: Searchable table of analyzed transactions with status filters.
+- **Dynamic Dashboard**: Visualizations of risk distributions, transaction volumes, and status breakdowns.
+- **Evidence Center**: Helps organize and review dispute documentation across **7 evidence categories**:
+  1. Transaction Information
+  2. Customer Verification
+  3. Payment Authentication
+  4. Order Information
+  5. Fulfillment Information
+  6. Customer Communication
+  7. Merchant Information
+- **Evidence Strength**: Calculates evidence completeness percentage based only on items marked as available.
+- **CSV Export**: Allows downloading transaction ledger records to a CSV file.
+- **Model Performance Dashboard**: Presents the synthetic held-out test evaluation metrics, confusion matrix, ROC-AUC, and threshold trade-off table.
 
 ---
 
 ## 11. Defense-Only Design
 
-ChargeGuard AI adheres to strict **ethical defense principles** for merchant dispute defense:
+ChargeGuard AI is built exclusively as a defensive risk management and evidence organization tool.
 
-- **Legitimate Documentation Only**: Focuses exclusively on organizing authentic merchant records (receipts, delivery confirmations, 3DS logs, and buyer correspondence).
-- **Zero Fabrication**: **DOES NOT** fabricate, synthesize, alter, or falsify customer records, delivery signatures, or bank authorization codes.
-- **Zero Impersonation**: **DOES NOT** impersonate customers or cardholders under any circumstances.
-- **No Deceptive Automation**: **DOES NOT** generate fraudulent or misleading dispute representations.
-- **Security Compliance**: Respects payment gateway integrity and **DOES NOT** bypass payment network protections or card scheme rules.
+**What ChargeGuard AI does:**
+- Detects potentially risky transactions using machine learning.
+- Supports merchant review and decision-making.
+- Organizes legitimate merchant records and documentation.
+- Summarizes available transaction evidence for dispute review.
+
+**What ChargeGuard AI does NOT do:**
+- It does **NOT** fabricate evidence.
+- It does **NOT** alter evidence or create fake documents.
+- It does **NOT** impersonate customers.
+- It does **NOT** deceive banks or card issuers.
+- It does **NOT** automate deceptive chargeback responses.
+- It does **NOT** bypass payment network protections.
 
 ---
 
@@ -228,90 +246,84 @@ ChargeGuard AI adheres to strict **ethical defense principles** for merchant dis
 > ### ⚠️ Mandatory Notice
 > **This project uses synthetic transaction data for demonstration and evaluation. The reported model metrics do not represent Razorpay production performance.**
 >
-> All customer names, card details, transaction amounts, and dispute histories in this repository and application are synthetically generated for educational, hackathon, and prototype evaluation.
+> All customer profiles, transaction records, and dispute data in this application are synthetic records generated for demonstration purposes.
 
 ---
 
 ## 13. Demo Flow
 
-Follow this step-by-step workflow during evaluation:
+The live demonstration follows this exact end-to-end workflow:
 
-1. **Navigate to "Real-Time ML Analysis"** in the navigation bar.
-2. **Enter a Transaction**: Fill in the transaction amount, customer details, velocity counters, and authentication flags (or utilize standard test inputs).
-3. **Click "Analyze Transaction"**: Trigger the live ML evaluation.
-4. **Data Transmission**: The React frontend packages the **11 features** into a JSON payload and sends it via HTTP POST to the FastAPI `/predict` endpoint.
-5. **ML Calculation**: `HistGradientBoostingClassifier` calculates the continuous chargeback probability.
-6. **Apply Decision Threshold**: The system applies the **0.20 threshold** to categorize the transaction.
-7. **Display Risk Results**: The UI renders the **Risk Score (0–100)**, **Chargeback Probability**, **Risk Level**, **Recommended Action**, and **Risk Factors**.
-8. **Ledger Update**: The analyzed transaction is immediately prepended to the **Transaction Ledger**.
-9. **Dashboard & Metrics Refresh**: The **Dashboard** metrics, charts, and exposure calculations dynamically update to reflect the new record.
-10. **Evidence Case Review**: Click **"Open Evidence Case"** to inspect document completeness, verify carrier tracking, and generate a formal merchant rebuttal package in the **Evidence Center**.
+1. **Transaction Input**: User enters transaction parameters in the Real-Time Analysis view.
+2. **Live FastAPI `/predict`**: Frontend sends the 11 features via HTTP POST.
+3. **HistGradientBoostingClassifier**: Model processes features and generates inference output.
+4. **Chargeback Probability**: Raw model probability is returned.
+5. **Threshold 0.20**: Evaluated against the decision threshold.
+6. **Risk Score**: Scaled to an intuitive 0–100 score.
+7. **Risk Level**: Assigned as LOW, MEDIUM, or HIGH.
+8. **Recommended Action**: Selected as APPROVE, MONITOR, or MANUAL_VERIFICATION.
+9. **Risk Factors**: Contributing attributes are highlighted.
+10. **AI Risk Explanation**: Contextual narrative explains the risk factors.
+11. **Transaction Ledger**: Analyzed record is added to the ledger.
+12. **Dashboard**: Charts and summary statistics update automatically.
+13. **Evidence Center**: Transaction documentation can be reviewed across the 7 evidence categories.
 
 ---
 
 ## 14. Example Demonstration Transactions
 
-The following scenarios illustrate how varying risk factors influence the model's prediction:
+The following scenarios illustrate typical input combinations and expected directions:
 
-| Scenario | Sample Inputs | Expected Outcome* |
+| Scenario | Sample Inputs | Expected Direction* |
 |---|---|---|
-| **Scenario A: Low Risk** | Amount: ₹1,500, Account Age: 180 days, Past Orders: 12, Chargebacks: 0, Failed Attempts: 0, Velocity: 1, Device: Unchanged, Address: Match, 3DS: Authenticated | **LOW RISK / APPROVE**<br>Low chargeback probability (< 0.10), high customer trust score. |
-| **Scenario B: Medium Risk** | Amount: ₹18,500, Account Age: 25 days, Past Orders: 2, Chargebacks: 0, Failed Attempts: 1, Velocity: 3, Device: Changed, Address: Match, 3DS: Authenticated | **MEDIUM RISK / FLAG_FOR_REVIEW**<br>Moderate probability (~0.15–0.25), borderline review recommended due to velocity. |
-| **Scenario C: High Risk** | Amount: ₹85,000, Account Age: 1 day, Past Orders: 0, Chargebacks: 1, Failed Attempts: 4, Velocity: 7, Device: Changed, Address: Mismatch, 3DS: Attempted Only | **HIGH / CRITICAL / BLOCK**<br>High chargeback probability (> 0.45), multiple compounding risk signals. |
+| **Scenario A: Low Risk** | Amount: ₹1,500, Account Age: 180 days, Past Orders: 12, Chargebacks: 0, Failed Attempts: 0, Velocity: 1, Device: Unchanged, Address: Match, 3DS: Authenticated | **LOW / APPROVE**<br>Low chargeback probability estimate. |
+| **Scenario B: Medium Risk** | Amount: ₹18,500, Account Age: 25 days, Past Orders: 2, Chargebacks: 0, Failed Attempts: 1, Velocity: 3, Device: Changed, Address: Match, 3DS: Authenticated | **MEDIUM / MONITOR**<br>Moderate probability estimate; secondary monitoring indicated. |
+| **Scenario C: High Risk** | Amount: ₹85,000, Account Age: 1 day, Past Orders: 0, Chargebacks: 1, Failed Attempts: 4, Velocity: 7, Device: Changed, Address: Mismatch, 3DS: Attempted Only | **HIGH / MANUAL_VERIFICATION**<br>Elevated probability estimate; manual verification recommended. |
 
-*\*Note: Exact probabilities and risk scores are dynamically computed at runtime by the trained `HistGradientBoostingClassifier`.*
+*\*Note: Exact probabilities, risk scores, and actions are dynamically computed at runtime by the trained machine learning model.*
 
 ---
 
 ## 15. Technology Stack
 
-- **Frontend Application**:
-  - React 19
-  - TypeScript
-  - Vite 6
-  - Tailwind CSS 4
-  - Lucide React (Icons)
-  - Recharts (Data Visualizations & Performance Curves)
-  - Motion (Interface Transitions)
-- **AI / Prototype Platform**:
-  - Google AI Studio
-  - Antigravity Developer Platform
-- **Backend & Inference Engine**:
-  - Python 3.10+
-  - FastAPI (REST API framework)
-  - scikit-learn (`HistGradientBoostingClassifier`)
-  - pandas & NumPy
-  - joblib (Model serialization)
-- **Deployment & Networking (Demo)**:
-  - Google Colab (Demonstration ML host runtime)
-  - ngrok (Secure reverse tunneling to Colab)
-  - Express.js / Node.js (Vite server & proxy fallback layer)
-  - GitHub (Version control & repository hosting)
+- **React**
+- **TypeScript**
+- **Vite**
+- **Tailwind CSS**
+- **FastAPI**
+- **Python**
+- **scikit-learn** (`HistGradientBoostingClassifier`)
+- **pandas**
+- **NumPy**
+- **joblib**
+- **Google AI Studio**
+- **Google Colab** (demonstration backend host)
+- **ngrok** (demonstration API tunnel)
+- **GitHub**
 
 ---
 
 ## 16. Future Improvements
 
-Key enhancements planned for production readiness:
+Future enhancements planned for production readiness include:
 
-- **Real Merchant Data Training**: Retrain and benchmark using production card-not-present (CNP) and UPI merchant transaction datasets.
-- **Persistent Cloud Deployment**: Migrate the ML model from Colab/ngrok to managed, autoscaling infrastructure (e.g., Google Cloud Run, AWS SageMaker, or Kubernetes).
-- **Real-Time Model Monitoring & Drift Detection**: Continuous tracking of feature drift, concept drift, and performance decay across payment rails.
-- **Probability Calibration**: Implement Isotonic Regression or Platt Scaling to improve raw probability calibration across rare dispute classes.
-- **Model Explainability**: Integrate SHAP (SHapley Additive exPlanations) or TreeSHAP for exact local feature attribution per transaction.
-- **Cost-Sensitive Threshold Optimization**: Dynamically adjust thresholds based on individual merchant operating margins, product categories, and interchange costs.
-- **Enterprise Authentication & RBAC**: Implement OAuth 2.0 / JWT role-based access controls for risk analysts, compliance officers, and finance admins.
-- **Production Relational Database**: Transition from browser localStorage to PostgreSQL / Cloud Spanner with full audit logging and encryption at rest.
-- **Automated Carrier & Acquirer Integrations**: Direct API webhooks into shipping carriers (FedEx, Blue Dart, Delhivery) and payment gateway dispute APIs for zero-touch representation.
+- **Real Merchant Data**: Training and evaluation on real card-not-present merchant transaction datasets.
+- **Persistent Backend Deployment**: Deploying containerized services on cloud infrastructure.
+- **Model Monitoring**: Continuous tracking of data and prediction distributions over time.
+- **Probability Calibration**: Evaluating calibration techniques such as Isotonic Regression or Platt Scaling.
+- **Explainability**: Implementing feature attribution frameworks such as SHAP.
+- **Threshold Optimization**: Incorporating empirical business costs and merchant margins to tune operating thresholds.
+- **Authentication & Authorization**: Implementing role-based access control (RBAC).
+- **Secure API Deployment**: Enforcing mTLS, API keys, and rate limiting.
+- **Production Database**: Storing records in a persistent relational database.
+- **Evidence Integrations**: Direct API connections to shipping carriers and gateway dispute endpoints.
 
 ---
 
 ## 17. Disclaimer
 
-This software is developed strictly as a **hackathon demonstration and proof-of-concept prototype**. It is **NOT** a certified production payment-risk system, credit scoring service, or banking software. 
-
-The software is provided "as is", without warranty of any kind, express or implied. Users and evaluators should not rely on this application for financial, legal, or commercial transaction processing without independent evaluation, security audits, and production infrastructure.
+This project is a **hackathon demonstration and proof-of-concept system**, not a production payment-risk or commercial banking platform. It is provided for evaluation and research purposes only.
 
 ---
 
-**ChargeGuard AI Team** — Built for evaluators and modern digital commerce defense.
+**ChargeGuard AI** — Hackathon Demonstration Project.
