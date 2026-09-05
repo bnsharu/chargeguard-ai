@@ -1,0 +1,6 @@
+{
+  "name": "ChargeGuard AI",
+  "description": "AI-powered merchant chargeback risk manager with real-time scoring, explainable threat detection, automated dispute evidence generation, and honest ML performance evaluation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
