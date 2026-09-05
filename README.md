@@ -320,6 +320,64 @@ Future enhancements planned for production readiness include:
 
 ---
 
+## System Architecture
+
+### Runtime Inference Architecture
+
+```mermaid
+flowchart TD
+    User["Merchant / User"]
+    Dashboard["ChargeGuard AI Web Dashboard"]
+    Analysis["Real-Time Transaction Analysis"]
+    Integration["ML API Integration"]
+
+    subgraph Backend["Google Colab + FastAPI + ngrok — Demonstration Backend"]
+        FastAPI["FastAPI Inference API"]
+        Model["HistGradientBoostingClassifier"]
+    end
+
+    Prob["Chargeback Probability"]
+    Threshold["Decision Threshold (0.20)"]
+    Decision["Risk Score + Risk Level + Recommended Action"]
+    Ledger["Transaction Ledger"]
+    Evidence["Risk Details / Evidence Center"]
+
+    User --> Dashboard
+    Dashboard --> Analysis
+    Analysis --> Integration
+    Integration --> FastAPI
+    FastAPI --> Model
+    Model --> Prob
+    Prob --> Threshold
+    Threshold --> Decision
+    Decision --> Ledger
+    Ledger --> Evidence
+```
+
+### Model Development Flow
+
+```mermaid
+flowchart TD
+    subgraph Data["Synthetic Data — Demonstration Only"]
+        Dataset["Synthetic Transaction Dataset"]
+    end
+
+    Split["Train / Held-out Test Split"]
+    Training["HistGradientBoostingClassifier Training"]
+    Artifact["Saved Model Artifact"]
+
+    subgraph ServingBackend["Google Colab + FastAPI + ngrok — Demonstration Backend"]
+        InferenceAPI["FastAPI Inference API"]
+    end
+
+    Dataset --> Split
+    Split --> Training
+    Training --> Artifact
+    Artifact --> InferenceAPI
+```
+
+---
+
 ## 17. Disclaimer
 
 This project is a **hackathon demonstration and proof-of-concept system**, not a production payment-risk or commercial banking platform. It is provided for evaluation and research purposes only.
